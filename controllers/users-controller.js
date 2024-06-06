@@ -1,4 +1,5 @@
 const e = require("express");
+const User = require("../model/user");
 const HttpError = require("../models/http-error");
 const { v4: uuidv4 } = require("uuid");
 const { validationResult } = require("express-validator");
@@ -26,35 +27,52 @@ const getUsers = (req, res, next) => {
   res.status(200).json({ users: DUMMY_USERS });
 };
 
-const signUp = (req, res, next) => {
+const signUp = async (req, res, next) => {
+  let existingUser;
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
-    throw new HttpError("Invalid input.", 422);
+    return next(new HttpError("Invalid input.", 422));
   }
-  const { name, surname, email, password } = req.body;
-  const hasuSER = DUMMY_USERS.find((u) => u.email === email);
-  if (hasuSER) {
-    throw new HttpError("User with this email already exist.", 422);
+  try {
+    existingUser = await User.findOne({ email: email });
+  } catch (err) {
+    const error = new HttpError("error", 500);
   }
-  const createdUser = {
-    id: uuidv4(),
-    name,
-    surname,
-    email,
-    password,
-  };
-  DUMMY_USERS.push(createdUser);
 
-  res.status(201).json({ message: "Succesfully signed up." });
+  if (existingUser) {
+    const error = new HttpError("User already exist.", 422);
+  }
+
+  const { name, surname, email, password, places } = req.body;
+
+  const createdUser = new User({
+    name,
+    email,
+    image:
+      "https://lp-cms-production.imgix.net/2021-05/shutterstockRF_1563449509.jpg?auto=format&w=1440&h=810&fit=crop&q=75",
+    password,
+    places,
+  });
+  try {
+    await createdUser.save();
+  } catch (err) {
+    const error = new HttpError("cREATING user FAILED.", 500);
+    return next(error);
+  }
+  res.status(201).json({ user: createdUser.toObject({ getters: true }) });
 };
 
-const LogIn = (req, res, next) => {
+const LogIn = async (req, res, next) => {
   const { email, password } = req.body;
 
-  const user = DUMMY_USERS.find((u) => u.email === email);
-  if (!user || user.password != password) {
-    throw new HttpError("No user with that email.", 401);
+  let isSigned;
+
+  try {
+    isSigned = User.findOne({ email: email, password: password });
+  } catch (err) {
+    const error = new HttpError("Doesnt exist", 422);
   }
+
   res.status(200).json({ message: "Logged in." });
 };
 exports.getUsers = getUsers;
