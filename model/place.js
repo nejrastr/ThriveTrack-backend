@@ -12,7 +12,7 @@ const placeSchema = new Schema({
     lng: { type: Number, require: true },
   },
   address: { type: String, require: true },
-  creator: { type: String, require: true },
+  creator: { type: mongoose.Types.ObjectId, required: true, ref: "User" },
 });
 
 module.exports = mongoose.model("Place", placeSchema);
